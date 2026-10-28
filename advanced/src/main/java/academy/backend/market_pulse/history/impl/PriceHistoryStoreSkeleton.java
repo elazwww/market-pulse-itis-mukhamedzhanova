@@ -1,7 +1,15 @@
 package academy.backend.market_pulse.history.impl;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 
 import academy.backend.market_pulse.history.PriceHistoryStore;
 import academy.backend.market_pulse.history.PricePoint;
@@ -18,16 +26,50 @@ public class PriceHistoryStoreSkeleton implements PriceHistoryStore {
 
     @Override
     public Path append(Path directory, PricePoint point) {
-        // TODO: записать точку в новый файл внутри directory — существующие файлы не трогать.
-        //  Подсказка: имя файла на основе point.timestamp() даёт сортировку по имени = сортировку
-        //  по времени.
-        throw new UnsupportedOperationException("TODO: реализовать запись точки истории цены");
+        Path tickerDirectory = directory.resolve(point.ticker());
+        Path file = tickerDirectory.resolve(point.timestamp().toEpochMilli() + ".txt");
+        String line = point.ticker() + ";" + point.timestamp() + ";" + point.price();
+
+        try {
+            Files.createDirectories(tickerDirectory);
+            Files.writeString(file, line);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        return file;
     }
 
     @Override
     public List<PricePoint> load(Path directory, String ticker) {
-        // TODO: прочитать все точки по тикеру в порядке возрастания времени.
-        //  Если для тикера ещё нет точек — вернуть пустой список, а не бросать исключение.
-        throw new UnsupportedOperationException("TODO: реализовать чтение истории цены");
+
+        Path tickerDirectory = directory.resolve(ticker);
+
+        if (!Files.exists(tickerDirectory)) {
+            return new ArrayList<>();
+        }
+
+        List<Path> files;
+        try (Stream<Path> stream = Files.list(tickerDirectory)) {
+            files = stream.toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        List<PricePoint> result = new ArrayList<>();
+        for (Path file : files) {
+            String line;
+            try {
+                line = Files.readString(file).trim();
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+
+            String[] parts = line.split(";");
+            result.add(new PricePoint(parts[0], Instant.parse(parts[1]), new BigDecimal(parts[2])));
+        }
+
+        result.sort(Comparator.comparing(PricePoint::timestamp));
+        return result;
     }
 }
