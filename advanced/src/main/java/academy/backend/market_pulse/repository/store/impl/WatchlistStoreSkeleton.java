@@ -1,6 +1,11 @@
 package academy.backend.market_pulse.repository.store.impl;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import academy.backend.market_pulse.repository.store.WatchlistStore;
@@ -15,14 +20,32 @@ public class WatchlistStoreSkeleton implements WatchlistStore {
 
     @Override
     public void save(Path path, Set<String> tickers) {
-        // TODO: сохранить тикеры watchlist-а в файл по указанному пути, сохранив порядок.
-        throw new UnsupportedOperationException("TODO: реализовать сохранение watchlist-а в файл");
+        try {
+            Files.write(path, tickers);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @Override
     public Set<String> load(Path path) {
-        // TODO: прочитать тикеры watchlist-а из файла.
-        //  Если файла ещё нет (первый запуск) — вернуть пустой набор, а не бросать исключение.
-        throw new UnsupportedOperationException("TODO: реализовать чтение watchlist-а из файла");
+        if (!Files.exists(path)) {
+            return new LinkedHashSet<>();
+        }
+
+        List<String> lines;
+        try {
+            lines = Files.readAllLines(path);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        Set<String> tickers = new LinkedHashSet<>();
+        for (String line : lines) {
+            if (!line.trim().isEmpty()) {
+                tickers.add(line.trim());
+            }
+        }
+        return tickers;
     }
 }
